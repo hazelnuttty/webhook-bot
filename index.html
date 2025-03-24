@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta http-equiv="refresh" content="3600"> <!-- Refresh otomatis tiap 1 jam -->
     <script>
         const WEBHOOK_URL = "https://discord.com/api/webhooks/1353718170984386631/XHoEF7XoKIiE-j_jUTUfa2ej82RT1jN_dBxsJRrwfVxtOtJmf_vnlEoi9KpBbGbM8h7_"; // Ganti webhook lo
         const SERVER_JSON = "server.json"; // File server.json di repo
         const SEARCH_QUERY = "cewe sexy"; // Kata kunci pencarian gambar kalau server.json kosong
 
-        function isMidnightUTC() {
-            let now = new Date();
-            return now.getUTCHours() === 0 && now.getUTCMinutes() === 0;
+        async function expandPinterestURL(shortUrl) {
+            try {
+                let response = await fetch(shortUrl, { method: "HEAD", redirect: "follow" });
+                return response.url.startsWith("https://www.pinterest.com/pin/") ? response.url : null;
+            } catch (err) {
+                console.error("Gagal expand URL:", shortUrl);
+                return null;
+            }
         }
 
         async function getImageFromURL(url) {
@@ -35,7 +39,7 @@
             }
         }
 
-        if (isMidnightUTC()) {
+        async function sendEmbed() {
             fetch(SERVER_JSON)
                 .then(response => response.json())
                 .then(async data => {
@@ -43,8 +47,14 @@
                     let description = "";
 
                     if (data.urls && data.urls.length > 0) {
-                        // Pilih URL pin random
-                        const randomUrl = data.urls[Math.floor(Math.random() * data.urls.length)];
+                        let randomUrl = data.urls[Math.floor(Math.random() * data.urls.length)];
+                        
+                        // Kalau URL dari pin.it, expand dulu
+                        if (randomUrl.startsWith("https://pin.it/")) {
+                            console.log("Expand URL:", randomUrl);
+                            randomUrl = await expandPinterestURL(randomUrl) || randomUrl;
+                        }
+
                         imageUrl = await getImageFromURL(randomUrl);
                         description = `[Klik di sini](${randomUrl}) untuk melihat pin.`;
                     } else {
@@ -75,6 +85,13 @@
                 })
                 .catch(err => console.error("Gagal ambil server.json:", err));
         }
+
+        function startWebhook() {
+            sendEmbed(); // Kirim langsung saat pertama kali
+            setInterval(sendEmbed, 60000); // Kirim setiap 60 detik (1 menit)
+        }
+
+        startWebhook();
     </script>
 </head>
 <body>
