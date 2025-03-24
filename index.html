@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="refresh" content="3600"> <!-- Refresh otomatis tiap 1 jam -->
+    <script>
+        const WEBHOOK_URL = "https://discord.com/api/webhooks/1353718170984386631/XHoEF7XoKIiE-j_jUTUfa2ej82RT1jN_dBxsJRrwfVxtOtJmf_vnlEoi9KpBbGbM8h7_"; // Ganti webhook lo
+        const SERVER_JSON = "server.json"; // File server.json di repo
+        const SEARCH_QUERY = "cewe sexy"; // Kata kunci pencarian gambar kalau server.json kosong
+
+        function isMidnightUTC() {
+            let now = new Date();
+            return now.getUTCHours() === 0 && now.getUTCMinutes() === 0;
+        }
+
+        async function getImageFromURL(url) {
+            try {
+                let response = await fetch(url);
+                let html = await response.text();
+                let match = html.match(/<meta property="og:image" content="(.*?)"/);
+                return match ? match[1] : null;
+            } catch (err) {
+                console.error("Gagal ambil gambar dari:", url);
+                return null;
+            }
+        }
+
+        async function searchImageOnline() {
+            try {
+                let response = await fetch(`https://api.qwant.com/v3/search/images?count=1&q=${encodeURIComponent(SEARCH_QUERY)}`);
+                let data = await response.json();
+                return data.data.result.items[0].media || null;
+            } catch (err) {
+                console.error("Gagal cari gambar online:", err);
+                return null;
+            }
+        }
+
+        if (isMidnightUTC()) {
+            fetch(SERVER_JSON)
+                .then(response => response.json())
+                .then(async data => {
+                    let imageUrl = null;
+                    let description = "";
+
+                    if (data.urls && data.urls.length > 0) {
+                        // Pilih URL pin random
+                        const randomUrl = data.urls[Math.floor(Math.random() * data.urls.length)];
+                        imageUrl = await getImageFromURL(randomUrl);
+                        description = `[Klik di sini](${randomUrl}) untuk melihat pin.`;
+                    } else {
+                        // Jika server.json kosong, cari gambar online
+                        imageUrl = await searchImageOnline();
+                        description = "🔥 Random cewe sexy dari internet!";
+                    }
+
+                    if (!imageUrl) {
+                        console.error("Gagal mendapatkan gambar.");
+                        return;
+                    }
+
+                    // Kirim embed ke Discord
+                    fetch(WEBHOOK_URL, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            embeds: [{
+                                title: "🔗 Random Pinned URL / Gambar Online",
+                                description: description,
+                                image: { url: imageUrl },
+                                color: 16711680
+                            }]
+                        })
+                    }).then(() => console.log("Embed terkirim!"))
+                      .catch(err => console.error("Gagal kirim:", err));
+                })
+                .catch(err => console.error("Gagal ambil server.json:", err));
+        }
+    </script>
+</head>
+<body>
+    <h1>Wait....</h1>
+</body>
+</html>
